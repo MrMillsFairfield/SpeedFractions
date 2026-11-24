@@ -1,0 +1,1866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Speed &amp; Fraction Explorer</title>
+  <style>
+    /* =====================================================================
+       RESET & 16:9 CLASSROOM TV WHITEBOARD LOCK (ZERO SCROLL, NO DEPS)
+       ===================================================================== */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    :root {
+      --bg: #ffffff;
+      --dock-bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-subtle: #f1f5f9;
+      --border: #e2e8f0;
+      --border-strong: #cbd5e1;
+
+      --ink: #0f172a;
+      --ink-muted: #64748b;
+
+      --blue: #2563eb;       /* Royal Blue: Multiply & km accents */
+      --blue-soft: #eff6ff;
+      --blue-border: #bfdbfe;
+
+      --teal: #059669;       /* Emerald/Teal: Divide & Solved (60 min / km/h) */
+      --teal-soft: #ecfdf5;
+      --teal-border: #a7f3d0;
+
+      --amber: #d97706;      /* Amber: Subtle highlights & active progress */
+      --amber-soft: #fffbeb;
+      --amber-border: #fde68a;
+
+      --red: #dc2626;        /* Crimson: Incorrect answer feedback */
+      --red-soft: #fef2f2;
+      --red-border: #fecaca;
+
+      /* Dynamic chain scale updated by JS based on number of steps */
+      --chain-scale: 1;
+    }
+
+    html, body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* 4-Band Vertical Grid: 8vh Top | 14vh Track | 54vh Stage | 24vh Dock = 100vh */
+    .app {
+      width: 100vw;
+      height: 100vh;
+      display: grid;
+      grid-template-rows: 8vh 14vh 54vh 24vh;
+      background: var(--bg);
+      overflow: hidden;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* =====================================================================
+       BAND 1: SLIM TOP BAR (~8vh, pure white with subtle bottom border)
+       ===================================================================== */
+    .topbar {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      padding: 0 2vw;
+      background: var(--bg);
+      border-bottom: 1.5px solid var(--border);
+      gap: 1vw;
+      z-index: 10;
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+    }
+
+    .topbar-center {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1vw;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.65vw;
+    }
+
+    .game-top-controls {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.65vw;
+    }
+
+    /* Segmented Mode Toggle: Explore | Game */
+    .mode-pill {
+      display: inline-flex;
+      background: var(--surface-subtle);
+      border: 1.5px solid var(--border);
+      border-radius: 999px;
+      padding: 0.35vh;
+      gap: 0.25vw;
+    }
+
+    .mode-btn {
+      border: none;
+      background: transparent;
+      color: var(--ink-muted);
+      font-weight: 800;
+      font-size: clamp(0.85rem, 1.25vw, 1.3rem);
+      padding: 0.65vh 1.4vw;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .mode-btn.active {
+      background: var(--ink);
+      color: #ffffff;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.16);
+    }
+
+    .mode-btn.active.game-on {
+      background: var(--teal);
+      color: #ffffff;
+    }
+
+    /* Game Center Controls: ★ 0 | 1 2 3 | Next → */
+    .score-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4vw;
+      background: var(--amber-soft);
+      border: 1.5px solid var(--amber-border);
+      color: var(--amber);
+      font-weight: 900;
+      font-size: clamp(0.9rem, 1.35vw, 1.4rem);
+      padding: 0.55vh 1vw;
+      border-radius: 999px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .tier-dots {
+      display: inline-flex;
+      align-items: center;
+      background: var(--surface-subtle);
+      border: 1.5px solid var(--border);
+      border-radius: 999px;
+      padding: 0.3vh;
+      gap: 0.25vw;
+    }
+
+    .tier-dot {
+      border: none;
+      background: transparent;
+      color: var(--ink-muted);
+      font-weight: 900;
+      font-size: clamp(0.82rem, 1.15vw, 1.2rem);
+      width: clamp(28px, 2.3vw, 40px);
+      height: clamp(26px, 3.8vh, 38px);
+      border-radius: 999px;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .tier-dot.active {
+      background: var(--amber);
+      color: #ffffff;
+    }
+
+    .next-btn {
+      border: 1.5px solid var(--border);
+      background: var(--surface-subtle);
+      color: var(--ink-muted);
+      font-weight: 800;
+      font-size: clamp(0.85rem, 1.25vw, 1.3rem);
+      padding: 0.65vh 1.25vw;
+      border-radius: 999px;
+      cursor: not-allowed;
+      opacity: 0.55;
+      transition: all 0.2s ease;
+    }
+
+    .next-btn.ready {
+      background: var(--teal);
+      border-color: var(--teal);
+      color: #ffffff;
+      cursor: pointer;
+      opacity: 1;
+      box-shadow: 0 4px 14px rgba(5, 150, 105, 0.3);
+      animation: nextPulse 1.6s ease-in-out infinite;
+    }
+
+    .next-btn.ready:hover {
+      background: #047857;
+    }
+
+    @keyframes nextPulse {
+      0%, 100% { transform: scale(1); }
+      50%      { transform: scale(1.04); }
+    }
+
+    /* Vehicle Picker & Icon-Only Undo / Reset */
+    .vehicle-picker {
+      display: inline-flex;
+      align-items: center;
+      background: var(--surface-subtle);
+      border: 1.5px solid var(--border);
+      border-radius: 999px;
+      padding: 0.3vh;
+      gap: 0.2vw;
+    }
+
+    .veh-btn {
+      border: 1.5px solid transparent;
+      background: transparent;
+      color: var(--ink-muted);
+      width: clamp(34px, 3vw, 50px);
+      height: clamp(28px, 4.4vh, 42px);
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .veh-btn:hover {
+      color: var(--ink);
+      background: rgba(15, 23, 42, 0.05);
+    }
+
+    .veh-btn.active {
+      background: var(--bg);
+      color: var(--blue);
+      border-color: var(--blue-border);
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.14);
+    }
+
+    .veh-btn svg {
+      width: clamp(18px, 1.75vw, 28px);
+      height: clamp(18px, 1.75vw, 28px);
+    }
+
+    .top-divider {
+      width: 1.5px;
+      height: 3.4vh;
+      background: var(--border);
+      margin: 0 0.2vw;
+    }
+
+    .icon-btn {
+      width: clamp(34px, 3vw, 48px);
+      height: clamp(30px, 4.8vh, 44px);
+      border-radius: 0.7vw;
+      border: 1.5px solid var(--border);
+      background: var(--bg);
+      color: var(--ink);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease, opacity 0.15s ease;
+    }
+
+    .icon-btn:hover:not(:disabled) {
+      background: var(--surface-subtle);
+      border-color: var(--border-strong);
+    }
+
+    .icon-btn:active:not(:disabled) {
+      transform: scale(0.94);
+    }
+
+    .icon-btn:disabled {
+      opacity: 0.32;
+      cursor: not-allowed;
+    }
+
+    .icon-btn svg {
+      width: clamp(16px, 1.45vw, 24px);
+      height: clamp(16px, 1.45vw, 24px);
+    }
+
+    /* =====================================================================
+       BAND 2: ANIMATED VEHICLE TRACK BAND (~14vh, pure white)
+       ===================================================================== */
+    .track-band {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 0.6vh 2.5vw 0.4vh 2.5vw;
+      background: var(--bg);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Road Lane */
+    .road-stage {
+      position: relative;
+      width: 100%;
+      height: 11.2vh;
+      overflow: hidden;
+      border-bottom: 2.5px solid var(--border-strong);
+    }
+
+    /* Subtle Horizontal Distance Dashes */
+    .road-dashes {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 1.4vh;
+      height: 2px;
+      background-image: repeating-linear-gradient(
+        to right,
+        #cbd5e1 0px,
+        #cbd5e1 22px,
+        transparent 22px,
+        transparent 52px
+      );
+      opacity: 0.7;
+    }
+
+    /* Moving Vehicle Container (positioned via requestAnimationFrame) */
+    .vehicle-runner {
+      position: absolute;
+      bottom: 0.7vh;
+      left: 0;
+      display: inline-flex;
+      align-items: center;
+      will-change: transform;
+      pointer-events: none;
+    }
+
+    .vehicle-svg-wrap {
+      height: 8.6vh;
+      width: auto;
+      display: flex;
+      align-items: flex-end;
+    }
+
+    .vehicle-svg-wrap svg {
+      height: 100%;
+      width: auto;
+      display: block;
+      overflow: visible;
+    }
+
+    .wheel-spin {
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: wheelSpin var(--wheel-dur, 0.8s) linear infinite;
+    }
+
+    @keyframes wheelSpin {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+
+    /* Speed Boost Lines behind Vehicle */
+    .speed-lines {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 0.7vh;
+      margin-right: 0.5vw;
+      opacity: 0;
+      transform: translateX(8px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .speed-lines.boost {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .s-line {
+      height: 3px;
+      border-radius: 999px;
+      background: var(--teal);
+    }
+
+    .s-line:nth-child(1) { width: 32px; opacity: 0.9; }
+    .s-line:nth-child(2) { width: 48px; opacity: 1; }
+    .s-line:nth-child(3) { width: 24px; opacity: 0.75; }
+
+    /* Slim Progress Bar at Bottom of Main Stage with 60 min Goal Marker */
+    .progress-wrap {
+      position: relative;
+      width: 100%;
+      padding-top: 0.8vh;
+      height: 5.2vh;
+      flex-shrink: 0;
+    }
+
+    .progress-track-outer {
+      position: relative;
+      width: 100%;
+      height: 1.25vh;
+      display: flex;
+      align-items: center;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 1.1vh;
+      background: var(--surface-subtle);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 30%;
+      border-radius: 999px;
+      background: var(--amber);
+      transition: width 0.38s cubic-bezier(0.22, 1, 0.36, 1), background 0.25s ease;
+    }
+
+    .progress-fill.solved {
+      background: var(--teal);
+    }
+
+    .goal-line {
+      position: absolute;
+      top: -0.45vh;
+      bottom: -0.45vh;
+      width: 3px;
+      background: var(--teal);
+      border-radius: 999px;
+      transform: translateX(-50%);
+      transition: left 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+      pointer-events: none;
+    }
+
+    .progress-tags {
+      position: relative;
+      width: 100%;
+      height: 2.6vh;
+      margin-top: 0.35vh;
+    }
+
+    .tag-60 {
+      position: absolute;
+      top: 0;
+      transform: translateX(-50%);
+      font-weight: 900;
+      font-size: clamp(0.75rem, 1.1vw, 1.15rem);
+      color: var(--teal);
+      white-space: nowrap;
+      transition: left 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .tag-cur {
+      position: absolute;
+      top: 0;
+      transform: translateX(-50%);
+      font-weight: 800;
+      font-size: clamp(0.72rem, 1.05vw, 1.08rem);
+      color: var(--amber);
+      white-space: nowrap;
+      transition: left 0.38s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease;
+    }
+
+    /* =====================================================================
+       BAND 3: MAIN FRACTION STAGE (~54vh, pure white whiteboard canvas)
+       ===================================================================== */
+    .stage {
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.4vh 2.5vw 0.8vh 2.5vw;
+      overflow: hidden;
+    }
+
+    /* Game Mode Word Problem + Prominent ___ km/h Answer Bar */
+    .game-prompt-bar {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 2vw;
+      padding: 1.2vh 1.8vw;
+      background: var(--surface-subtle);
+      border: 1.5px solid var(--border);
+      border-radius: 1.1vw;
+      flex-shrink: 0;
+    }
+
+    .problem-text {
+      font-size: clamp(1.15rem, 2.05vw, 2.25rem);
+      font-weight: 800;
+      line-height: 1.22;
+      color: var(--ink);
+      letter-spacing: -0.015em;
+    }
+
+    .answer-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.75vw;
+      flex-shrink: 0;
+    }
+
+    .answer-box {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 0.45vw;
+      background: var(--bg);
+      border: 2.5px solid var(--border-strong);
+      border-radius: 0.85vw;
+      padding: 0.65vh 1vw;
+      transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .answer-box:focus-within {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+    }
+
+    .answer-box.correct {
+      background: var(--teal-soft);
+      border-color: var(--teal);
+      box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.16);
+    }
+
+    .answer-box.wrong {
+      background: var(--red-soft);
+      border-color: var(--red);
+      box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.14);
+    }
+
+    .answer-input {
+      width: 4.2ch;
+      min-width: 72px;
+      background: transparent;
+      border: none;
+      border-bottom: 2.5px solid var(--border-strong);
+      outline: none;
+      text-align: center;
+      font-family: inherit;
+      font-weight: 900;
+      font-size: clamp(1.35rem, 2.5vw, 2.75rem);
+      line-height: 1.05;
+      color: var(--ink);
+      font-variant-numeric: tabular-nums;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+
+    .answer-box:focus-within .answer-input {
+      border-bottom-color: var(--blue);
+    }
+
+    .answer-box.correct .answer-input {
+      color: var(--teal);
+      border-bottom-color: var(--teal);
+    }
+
+    .answer-box.wrong .answer-input {
+      color: var(--red);
+      border-bottom-color: var(--red);
+    }
+
+    .answer-unit {
+      font-weight: 800;
+      font-size: clamp(1rem, 1.55vw, 1.7rem);
+      color: var(--ink-muted);
+      white-space: nowrap;
+    }
+
+    .answer-box.correct .answer-unit {
+      color: var(--teal);
+    }
+
+    .answer-check-mark {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--teal);
+      font-weight: 900;
+      font-size: clamp(1.2rem, 2vw, 2.2rem);
+      margin-left: 0.15vw;
+    }
+
+    .check-btn {
+      border: none;
+      background: var(--blue);
+      color: #ffffff;
+      font-family: inherit;
+      font-weight: 900;
+      font-size: clamp(0.95rem, 1.45vw, 1.55rem);
+      padding: 1.15vh 1.5vw;
+      border-radius: 0.85vw;
+      cursor: pointer;
+      box-shadow: 0 3px 0 #1d4ed8;
+      transition: background 0.15s ease, transform 0.08s ease;
+      white-space: nowrap;
+    }
+
+    .check-btn:hover {
+      background: #1d4ed8;
+    }
+
+    .check-btn:active {
+      transform: translateY(2px);
+    }
+
+    .stage-next-btn {
+      border: none;
+      background: var(--teal);
+      color: #ffffff;
+      font-family: inherit;
+      font-weight: 900;
+      font-size: clamp(0.95rem, 1.45vw, 1.55rem);
+      padding: 1.15vh 1.5vw;
+      border-radius: 0.85vw;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(5, 150, 105, 0.3);
+      animation: nextPulse 1.6s ease-in-out infinite;
+      white-space: nowrap;
+    }
+
+    .stage-next-btn:hover {
+      background: #047857;
+    }
+
+    .chain-wrap {
+      flex: 1;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .chain {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: calc(0.8vw * var(--chain-scale));
+      max-width: 100%;
+    }
+
+    /* Fraction Node (Clean Whiteboard Ink Style) */
+    .frac-node {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: calc(1.4vh * var(--chain-scale)) calc(1.5vw * var(--chain-scale));
+      border-radius: calc(1.2vw * var(--chain-scale));
+      border: 2px solid transparent;
+      background: transparent;
+      animation: nodeEnter 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      transition: background 0.25s ease, border-color 0.25s ease;
+    }
+
+    .frac-node.solved {
+      background: var(--teal-soft);
+      border-color: var(--teal-border);
+    }
+
+    @keyframes nodeEnter {
+      from { opacity: 0; transform: translateX(14px) scale(0.94); }
+      to   { opacity: 1; transform: translateX(0) scale(1); }
+    }
+
+    .frac-row {
+      display: inline-flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: calc(0.42vw * var(--chain-scale));
+    }
+
+    .frac-val {
+      font-weight: 900;
+      font-size: calc(clamp(2.4rem, 6.2vw, 7.2rem) * var(--chain-scale));
+      line-height: 1.05;
+      letter-spacing: -0.025em;
+      color: var(--ink);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .frac-unit {
+      font-weight: 800;
+      font-size: calc(clamp(1rem, 2.05vw, 2.3rem) * var(--chain-scale));
+      color: var(--ink-muted);
+    }
+
+    .frac-node.solved .frac-val,
+    .frac-node.solved .frac-unit {
+      color: var(--teal);
+    }
+
+    .frac-bar {
+      width: 100%;
+      min-width: calc(9.5vw * var(--chain-scale));
+      height: calc(clamp(4px, 0.58vh, 7px) * var(--chain-scale));
+      background: var(--ink);
+      border-radius: 999px;
+      margin: calc(1.1vh * var(--chain-scale)) 0;
+      transition: background 0.25s ease;
+    }
+
+    .frac-node.solved .frac-bar {
+      background: var(--teal);
+    }
+
+    /* Inline Editable Starting Fraction (Explore Mode) */
+    .editable-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: calc(0.3vw * var(--chain-scale));
+      border-radius: calc(0.8vw * var(--chain-scale));
+      padding: 0 calc(0.3vw * var(--chain-scale));
+      transition: background 0.15s ease;
+    }
+
+    .editable-wrap:hover,
+    .editable-wrap:focus-within {
+      background: var(--surface-subtle);
+    }
+
+    .nudge-btn {
+      width: calc(clamp(22px, 2vw, 34px) * var(--chain-scale));
+      height: calc(clamp(22px, 2vw, 34px) * var(--chain-scale));
+      border-radius: 999px;
+      border: 1.5px solid var(--border-strong);
+      background: var(--bg);
+      color: var(--ink);
+      font-weight: 900;
+      font-size: calc(clamp(0.9rem, 1.35vw, 1.45rem) * var(--chain-scale));
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+    }
+
+    .editable-wrap:hover .nudge-btn,
+    .editable-wrap:focus-within .nudge-btn {
+      opacity: 1;
+    }
+
+    .nudge-btn:hover {
+      background: var(--blue-soft);
+      border-color: var(--blue);
+      color: var(--blue);
+    }
+
+    .val-input {
+      background: transparent;
+      border: none;
+      outline: none;
+      text-align: center;
+      font-family: inherit;
+      font-weight: 900;
+      font-size: calc(clamp(2.4rem, 6.2vw, 7.2rem) * var(--chain-scale));
+      line-height: 1.05;
+      letter-spacing: -0.025em;
+      color: var(--ink);
+      font-variant-numeric: tabular-nums;
+      border-radius: 0.5vw;
+      cursor: text;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+
+    .frac-node.solved .val-input {
+      color: var(--teal);
+    }
+
+    .val-input:focus {
+      background: var(--bg);
+      box-shadow: 0 0 0 2.5px var(--blue);
+    }
+
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type="number"] {
+      -moz-appearance: textfield;
+    }
+
+    /* Curved Top/Bottom Arrow Connector between Equivalent Fractions */
+    .connector {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      height: calc(clamp(138px, 28vh, 275px) * var(--chain-scale));
+      width: calc(clamp(62px, 7vw, 114px) * var(--chain-scale));
+      animation: nodeEnter 0.22s ease forwards;
+      flex-shrink: 0;
+    }
+
+    .arrow-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+    }
+
+    .op-pill {
+      font-weight: 900;
+      font-size: calc(clamp(0.95rem, 1.75vw, 1.95rem) * var(--chain-scale));
+      padding: calc(0.28vh * var(--chain-scale)) calc(0.75vw * var(--chain-scale));
+      border-radius: 999px;
+      line-height: 1.15;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .op-pill.mul {
+      background: var(--blue-soft);
+      color: var(--blue);
+      border: 1.5px solid var(--blue-border);
+    }
+
+    .op-pill.div {
+      background: var(--teal-soft);
+      color: var(--teal);
+      border: 1.5px solid var(--teal-border);
+    }
+
+    .curved-arrow {
+      width: 92%;
+      height: calc(clamp(18px, 3.2vh, 34px) * var(--chain-scale));
+      display: block;
+      overflow: visible;
+    }
+
+    .eq-sign {
+      font-weight: 900;
+      font-size: calc(clamp(1.7rem, 3.6vw, 4rem) * var(--chain-scale));
+      color: var(--ink-muted);
+      line-height: 1;
+    }
+
+    /* Solved Speed Reveal (= 40 km/h) */
+    .result-reveal {
+      display: inline-flex;
+      align-items: center;
+      gap: calc(1vw * var(--chain-scale));
+      animation: popReveal 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    @keyframes popReveal {
+      from { opacity: 0; transform: scale(0.84) translateX(-10px); }
+      to   { opacity: 1; transform: scale(1) translateX(0); }
+    }
+
+    .result-badge {
+      display: inline-flex;
+      align-items: baseline;
+      gap: calc(0.45vw * var(--chain-scale));
+      padding: calc(1.8vh * var(--chain-scale)) calc(1.8vw * var(--chain-scale));
+      border-radius: calc(1.3vw * var(--chain-scale));
+      background: var(--teal);
+      color: #ffffff;
+      box-shadow: 0 10px 28px rgba(5, 150, 105, 0.28);
+      white-space: nowrap;
+    }
+
+    .result-val {
+      font-weight: 900;
+      font-size: calc(clamp(2.4rem, 6.2vw, 7.2rem) * var(--chain-scale));
+      line-height: 1;
+      letter-spacing: -0.025em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .result-unit {
+      font-weight: 800;
+      font-size: calc(clamp(1.1rem, 2.2vw, 2.5rem) * var(--chain-scale));
+      opacity: 0.92;
+    }
+
+    /* =====================================================================
+       BAND 4: CHUNKY TV OPERATOR DOCK (~24vh, clean light-gray/white footer)
+       ===================================================================== */
+    .dock {
+      display: grid;
+      grid-template-rows: 1fr 1fr;
+      gap: 1.4vh;
+      padding: 1.6vh 2.5vw 2.1vh 2.5vw;
+      background: var(--dock-bg);
+      border-top: 1.5px solid var(--border);
+    }
+
+    .op-row {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr) 1.35fr;
+      gap: 1vw;
+      height: 100%;
+    }
+
+    .op-btn {
+      border-radius: 1vw;
+      font-family: inherit;
+      font-weight: 900;
+      font-size: clamp(1.2rem, 2.45vw, 2.65rem);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.08s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.12s ease;
+      font-variant-numeric: tabular-nums;
+      background: var(--bg);
+    }
+
+    .op-btn:active {
+      transform: translateY(2px) scale(0.98);
+    }
+
+    /* Row 1: Multiply (Royal Blue Accent) */
+    .op-btn.mul {
+      color: var(--blue);
+      border: 2px solid var(--blue-border);
+      box-shadow: 0 3px 0 #dbeafe;
+    }
+
+    .op-btn.mul:hover {
+      background: var(--blue-soft);
+      border-color: var(--blue);
+    }
+
+    /* Row 2: Divide (Teal/Emerald Accent) */
+    .op-btn.div {
+      color: var(--teal);
+      border: 2px solid var(--teal-border);
+      box-shadow: 0 3px 0 #d1fae5;
+    }
+
+    .op-btn.div:hover {
+      background: var(--teal-soft);
+      border-color: var(--teal);
+    }
+
+    /* Custom × [ ] and ÷ [ ] Input Buttons */
+    .custom-op {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45vw;
+      border-radius: 1vw;
+      padding: 0 0.8vw;
+      font-weight: 900;
+      font-size: clamp(1.2rem, 2.3vw, 2.4rem);
+      background: var(--bg);
+    }
+
+    .custom-op.mul {
+      color: var(--blue);
+      border: 2px solid var(--blue-border);
+      box-shadow: 0 3px 0 #dbeafe;
+    }
+
+    .custom-op.div {
+      color: var(--teal);
+      border: 2px solid var(--teal-border);
+      box-shadow: 0 3px 0 #d1fae5;
+    }
+
+    .custom-op input {
+      width: 100%;
+      min-width: 0;
+      background: var(--surface-subtle);
+      border: 1.5px solid var(--border);
+      border-radius: 0.55vw;
+      color: var(--ink);
+      font-family: inherit;
+      font-weight: 900;
+      font-size: clamp(1.05rem, 2vw, 2.1rem);
+      text-align: center;
+      padding: 0.55vh 0.25vw;
+      outline: none;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+
+    .custom-op.mul input:focus {
+      background: var(--bg);
+      border-color: var(--blue);
+    }
+
+    .custom-op.div input:focus {
+      background: var(--bg);
+      border-color: var(--teal);
+    }
+
+    .custom-go {
+      border: none;
+      border-radius: 0.55vw;
+      padding: 0.65vh 0.75vw;
+      font-weight: 900;
+      font-size: clamp(0.95rem, 1.45vw, 1.55rem);
+      cursor: pointer;
+      flex-shrink: 0;
+      color: #ffffff;
+    }
+
+    .custom-op.mul .custom-go { background: var(--blue); }
+    .custom-op.div .custom-go { background: var(--teal); }
+
+    /* Horizontal Shake for Ugly Repeating Decimals or Invalid Input */
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%      { transform: translateX(-7px); }
+      40%      { transform: translateX(7px); }
+      60%      { transform: translateX(-5px); }
+      80%      { transform: translateX(5px); }
+    }
+
+    .shake {
+      animation: shake 0.32s ease;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+
+    <!-- ==================== BAND 1: SLIM TOP BAR (~8vh) ==================== -->
+    <header class="topbar">
+      <!-- Left: Explore | Game -->
+      <div class="topbar-left">
+        <div class="mode-pill" role="tablist">
+          <button id="btn-mode-explore" class="mode-btn active" onclick="setMode('explore')">Explore</button>
+          <button id="btn-mode-game" class="mode-btn" onclick="setMode('game')">Game</button>
+        </div>
+      </div>
+
+      <!-- Center: Compact Inline SVG Vehicle Picker -->
+      <div class="topbar-center">
+        <div class="vehicle-picker" id="vehicle-picker"></div>
+      </div>
+
+      <!-- Right: Game Tier & Score (Game mode only) + Undo / Reset -->
+      <div class="topbar-right">
+        <div id="game-controls" class="game-top-controls hidden">
+          <div class="tier-dots">
+            <button id="tier-1" class="tier-dot active" onclick="setTier(1)">1</button>
+            <button id="tier-2" class="tier-dot" onclick="setTier(2)">2</button>
+            <button id="tier-3" class="tier-dot" onclick="setTier(3)">3</button>
+          </div>
+          <div class="score-badge">
+            <span>★</span>
+            <span id="score-val">0 / 0</span>
+          </div>
+          <div class="top-divider"></div>
+        </div>
+        <button id="btn-undo" class="icon-btn" onclick="undoStep()" title="Undo (Backspace)" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 14L4 9l5-5"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/>
+          </svg>
+        </button>
+        <button id="btn-reset" class="icon-btn" onclick="resetChain()" title="Reset (R)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- ==================== BAND 2: ANIMATED VEHICLE TRACK (~14vh) ==================== -->
+    <section class="track-band">
+      <div class="road-stage" id="road-stage">
+        <div class="road-dashes"></div>
+        <div class="vehicle-runner" id="vehicle-runner">
+          <div class="speed-lines" id="speed-lines">
+            <div class="s-line"></div>
+            <div class="s-line"></div>
+            <div class="s-line"></div>
+          </div>
+          <div class="vehicle-svg-wrap" id="vehicle-svg-wrap"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== BAND 3: MAIN FRACTION STAGE (~54vh) ==================== -->
+    <main class="stage">
+      <!-- Game Mode Word Problem & ___ km/h Entry Bar -->
+      <div id="game-prompt-bar" class="game-prompt-bar hidden">
+        <div id="problem-text" class="problem-text"></div>
+        <div class="answer-group">
+          <div id="answer-box" class="answer-box">
+            <input id="answer-input" class="answer-input" type="number" step="any" placeholder="___"
+              onkeydown="handleAnswerKey(event)" />
+            <span class="answer-unit">km/h</span>
+            <span id="answer-check-mark" class="answer-check-mark hidden">✓</span>
+          </div>
+          <button id="btn-check" class="check-btn" onclick="checkAnswer()">Check</button>
+          <button id="btn-next" class="stage-next-btn hidden" onclick="nextProblem()">Next →</button>
+        </div>
+      </div>
+
+      <!-- Equivalent Fraction Chain Workbench -->
+      <div class="chain-wrap">
+        <div id="chain" class="chain"></div>
+      </div>
+
+      <!-- Slim 60-Min Proportion Bar -->
+      <div class="progress-wrap">
+        <div class="progress-track-outer">
+          <div class="progress-track">
+            <div id="progress-fill" class="progress-fill"></div>
+          </div>
+          <div id="goal-line" class="goal-line"></div>
+        </div>
+        <div class="progress-tags">
+          <div id="tag-cur" class="tag-cur">30 min</div>
+          <div id="tag-60" class="tag-60">60 min</div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ==================== BAND 4: CHUNKY TV OPERATOR DOCK (~24vh) ==================== -->
+    <footer class="dock">
+      <!-- Row 1: Multiply (Blue) -->
+      <div class="op-row">
+        <button class="op-btn mul" onclick="applyOp('mul', 2, this)">×2</button>
+        <button class="op-btn mul" onclick="applyOp('mul', 3, this)">×3</button>
+        <button class="op-btn mul" onclick="applyOp('mul', 4, this)">×4</button>
+        <button class="op-btn mul" onclick="applyOp('mul', 5, this)">×5</button>
+        <button class="op-btn mul" onclick="applyOp('mul', 6, this)">×6</button>
+        <button class="op-btn mul" onclick="applyOp('mul', 10, this)">×10</button>
+        <div class="custom-op mul" id="custom-mul-wrap">
+          <span>×</span>
+          <input id="custom-mul" type="number" step="any" min="0.01" placeholder="?"
+            onkeydown="if(event.key==='Enter') applyCustomOp('mul')" />
+          <button class="custom-go" onclick="applyCustomOp('mul')">↵</button>
+        </div>
+      </div>
+
+      <!-- Row 2: Divide (Teal) -->
+      <div class="op-row">
+        <button class="op-btn div" onclick="applyOp('div', 2, this)">÷2</button>
+        <button class="op-btn div" onclick="applyOp('div', 3, this)">÷3</button>
+        <button class="op-btn div" onclick="applyOp('div', 4, this)">÷4</button>
+        <button class="op-btn div" onclick="applyOp('div', 5, this)">÷5</button>
+        <button class="op-btn div" onclick="applyOp('div', 6, this)">÷6</button>
+        <button class="op-btn div" onclick="applyOp('div', 10, this)">÷10</button>
+        <div class="custom-op div" id="custom-div-wrap">
+          <span>÷</span>
+          <input id="custom-div" type="number" step="any" min="0.01" placeholder="?"
+            onkeydown="if(event.key==='Enter') applyCustomOp('div')" />
+          <button class="custom-go" onclick="applyCustomOp('div')">↵</button>
+        </div>
+      </div>
+    </footer>
+
+  </div>
+
+  <script>
+    /* =====================================================================
+       INLINE SVG VEHICLES (Picker Icons + Animated Track Art)
+       ===================================================================== */
+    const VEHICLES = [
+      {
+        id: 'bike',
+        title: 'Bicycle',
+        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/>
+          <path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5V14l-3-3 4-3 2 3h2"/>
+        </svg>`,
+        trackSvg: `<svg viewBox="0 0 120 72" fill="none">
+          <g class="wheel-spin">
+            <circle cx="28" cy="52" r="16" stroke="#0f172a" stroke-width="4" fill="#ffffff"/>
+            <line x1="28" y1="36" x2="28" y2="68" stroke="#94a3b8" stroke-width="2"/>
+            <line x1="12" y1="52" x2="44" y2="52" stroke="#94a3b8" stroke-width="2"/>
+          </g>
+          <g class="wheel-spin">
+            <circle cx="92" cy="52" r="16" stroke="#0f172a" stroke-width="4" fill="#ffffff"/>
+            <line x1="92" y1="36" x2="92" y2="68" stroke="#94a3b8" stroke-width="2"/>
+            <line x1="76" y1="52" x2="108" y2="52" stroke="#94a3b8" stroke-width="2"/>
+          </g>
+          <path d="M28 52 L54 52 L74 28 L44 28 Z" stroke="#2563eb" stroke-width="4.5" stroke-linejoin="round"/>
+          <path d="M54 52 L41 20 M34 20 L48 20" stroke="#0f172a" stroke-width="4" stroke-linecap="round"/>
+          <path d="M92 52 L72 18 L84 18" stroke="#0f172a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="54" cy="52" r="4" fill="#0f172a"/>
+        </svg>`
+      },
+      {
+        id: 'car',
+        title: 'Car',
+        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 17h14v-5l-2-5H7l-2 5v5z"/><circle cx="7.5" cy="17.5" r="2"/><circle cx="16.5" cy="17.5" r="2"/>
+        </svg>`,
+        trackSvg: `<svg viewBox="0 0 148 72" fill="none">
+          <path d="M16 48 L22 30 Q26 20 38 18 L86 18 Q98 18 108 28 L134 33 Q142 35 142 44 L142 52 L14 52 Z" fill="#2563eb"/>
+          <path d="M38 23 L78 23 L96 34 L30 34 Z" fill="#dbeafe"/>
+          <line x1="62" y1="23" x2="62" y2="34" stroke="#2563eb" stroke-width="3.5"/>
+          <rect x="132" y="38" width="9" height="6" rx="2" fill="#fde047"/>
+          <rect x="14" y="38" width="6" height="7" rx="2" fill="#ef4444"/>
+          <g class="wheel-spin">
+            <circle cx="40" cy="54" r="13" fill="#0f172a"/>
+            <circle cx="40" cy="54" r="6" fill="#cbd5e1"/>
+            <line x1="40" y1="48" x2="40" y2="60" stroke="#0f172a" stroke-width="2"/>
+          </g>
+          <g class="wheel-spin">
+            <circle cx="112" cy="54" r="13" fill="#0f172a"/>
+            <circle cx="112" cy="54" r="6" fill="#cbd5e1"/>
+            <line x1="112" y1="48" x2="112" y2="60" stroke="#0f172a" stroke-width="2"/>
+          </g>
+        </svg>`
+      },
+      {
+        id: 'train',
+        title: 'Bullet Train',
+        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 16h15c2 0 3-1 3-3 0-3-3-6-7-6H3v9z"/><path d="M3 12h12"/><circle cx="7" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/>
+        </svg>`,
+        trackSvg: `<svg viewBox="0 0 180 68" fill="none">
+          <path d="M8 22 L126 22 Q154 22 174 44 Q178 48 172 52 L8 52 Z" fill="#f8fafc" stroke="#0f172a" stroke-width="3"/>
+          <path d="M8 40 L166 40" stroke="#059669" stroke-width="6"/>
+          <path d="M126 26 Q146 27 158 37 L126 37 Z" fill="#0f172a"/>
+          <rect x="20" y="27" width="22" height="9" rx="2.5" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.5"/>
+          <rect x="49" y="27" width="22" height="9" rx="2.5" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.5"/>
+          <rect x="78" y="27" width="22" height="9" rx="2.5" fill="#bfdbfe" stroke="#0f172a" stroke-width="1.5"/>
+          <g class="wheel-spin">
+            <circle cx="34" cy="56" r="8" fill="#0f172a"/>
+            <line x1="34" y1="50" x2="34" y2="62" stroke="#94a3b8" stroke-width="2"/>
+          </g>
+          <g class="wheel-spin">
+            <circle cx="62" cy="56" r="8" fill="#0f172a"/>
+            <line x1="62" y1="50" x2="62" y2="62" stroke="#94a3b8" stroke-width="2"/>
+          </g>
+          <g class="wheel-spin">
+            <circle cx="132" cy="56" r="8" fill="#0f172a"/>
+            <line x1="132" y1="50" x2="132" y2="62" stroke="#94a3b8" stroke-width="2"/>
+          </g>
+        </svg>`
+      },
+      {
+        id: 'plane',
+        title: 'Airplane',
+        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>
+        </svg>`,
+        trackSvg: `<svg viewBox="0 0 164 68" fill="none">
+          <path d="M14 26 L28 10 L42 10 L36 28 Z" fill="#2563eb"/>
+          <path d="M18 30 L126 24 Q152 24 158 34 Q152 42 126 42 L20 38 Z" fill="#f8fafc" stroke="#0f172a" stroke-width="3"/>
+          <path d="M68 34 L106 34 L82 54 L62 54 Z" fill="#2563eb"/>
+          <path d="M132 27 Q144 27 148 33 L132 33 Z" fill="#0f172a"/>
+          <circle cx="54" cy="33" r="2.5" fill="#2563eb"/>
+          <circle cx="68" cy="33" r="2.5" fill="#2563eb"/>
+          <circle cx="82" cy="33" r="2.5" fill="#2563eb"/>
+          <circle cx="96" cy="33" r="2.5" fill="#2563eb"/>
+          <circle cx="110" cy="33" r="2.5" fill="#2563eb"/>
+        </svg>`
+      },
+      {
+        id: 'rocket',
+        title: 'Rocket',
+        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
+          <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
+        </svg>`,
+        trackSvg: `<svg viewBox="0 0 168 68" fill="none">
+          <path d="M6 34 Q20 22 36 26 L36 42 Q20 46 6 34 Z" fill="#f59e0b"/>
+          <path d="M16 34 Q26 28 36 30 L36 38 Q26 40 16 34 Z" fill="#fde047"/>
+          <path d="M42 22 L28 10 L58 18 Z" fill="#dc2626"/>
+          <path d="M42 46 L28 58 L58 50 Z" fill="#dc2626"/>
+          <path d="M36 22 L114 20 Q144 20 160 34 Q144 48 114 48 L36 46 Z" fill="#f8fafc" stroke="#0f172a" stroke-width="3"/>
+          <path d="M124 21 Q146 23 160 34 Q146 45 124 47 Z" fill="#dc2626"/>
+          <circle cx="94" cy="34" r="9" fill="#bfdbfe" stroke="#0f172a" stroke-width="3"/>
+        </svg>`
+      }
+    ];
+
+    /* =====================================================================
+       GAME MODE WORD PROBLEM BANKS (3 Tiers, all clean integer km/h)
+       ===================================================================== */
+    const PROBLEMS = {
+      // Tier 1: Single-step clean scaling
+      1: [
+        { km: 20,  min: 30,  vehicle: 'bike',  text: 'A cyclist travels 20 km in 30 minutes. How fast are they going?' },
+        { km: 15,  min: 15,  vehicle: 'car',   text: 'A car travels 15 km in 15 minutes. What is its speed?' },
+        { km: 12,  min: 20,  vehicle: 'bike',  text: 'A cyclist rides 12 km in 20 minutes. How fast are they going?' },
+        { km: 5,   min: 10,  vehicle: 'bike',  text: 'A bike travels 5 km in 10 minutes. What is its speed?' },
+        { km: 60,  min: 120, vehicle: 'bike',  text: 'A cyclist covers 60 km in 120 minutes. How fast are they going?' },
+        { km: 180, min: 180, vehicle: 'car',   text: 'A car drives 180 km in 180 minutes. What is its speed?' },
+        { km: 9,   min: 15,  vehicle: 'bike',  text: 'A cyclist travels 9 km in 15 minutes. How fast are they going?' },
+        { km: 25,  min: 30,  vehicle: 'car',   text: 'A car drives 25 km in 30 minutes. What is its speed?' }
+      ],
+      // Tier 2: Two-step clean scaling
+      2: [
+        { km: 30,  min: 45,  vehicle: 'bike',  text: 'A cyclist travels 30 km in 45 minutes. How fast are they going?' },
+        { km: 18,  min: 24,  vehicle: 'car',   text: 'A car travels 18 km in 24 minutes. What is its speed?' },
+        { km: 45,  min: 75,  vehicle: 'bike',  text: 'A cyclist rides 45 km in 75 minutes. How fast are they going?' },
+        { km: 10,  min: 12,  vehicle: 'car',   text: 'A car drives 10 km in 12 minutes. What is its speed?' },
+        { km: 42,  min: 36,  vehicle: 'car',   text: 'A car covers 42 km in 36 minutes. How fast is it going?' },
+        { km: 56,  min: 40,  vehicle: 'car',   text: 'A car travels 56 km in 40 minutes. What is its speed?' },
+        { km: 24,  min: 45,  vehicle: 'bike',  text: 'A cyclist travels 24 km in 45 minutes. How fast are they going?' },
+        { km: 90,  min: 45,  vehicle: 'train', text: 'A train travels 90 km in 45 minutes. What is its speed?' }
+      ],
+      // Tier 3: Challenging / Fast vehicles
+      3: [
+        { km: 140, min: 120, vehicle: 'car',    text: 'A car drives 140 km in 120 minutes. What is its speed?' },
+        { km: 240, min: 40,  vehicle: 'train',  text: 'A bullet train travels 240 km in 40 minutes. How fast is it going?' },
+        { km: 250, min: 150, vehicle: 'car',    text: 'A car travels 250 km in 150 minutes. What is its speed?' },
+        { km: 35,  min: 42,  vehicle: 'car',    text: 'A car covers 35 km in 42 minutes. How fast is it going?' },
+        { km: 450, min: 45,  vehicle: 'plane',  text: 'An airplane flies 450 km in 45 minutes. What is its speed?' },
+        { km: 180, min: 24,  vehicle: 'plane',  text: 'A jet flies 180 km in 24 minutes. How fast is it going?' },
+        { km: 320, min: 80,  vehicle: 'train',  text: 'A bullet train travels 320 km in 80 minutes. What is its speed?' },
+        { km: 600, min: 40,  vehicle: 'rocket', text: 'A rocket travels 600 km in 40 minutes. How fast is it going?' }
+      ]
+    };
+
+    /* =====================================================================
+       APPLICATION STATE
+       ===================================================================== */
+    const state = {
+      mode: 'explore',        // 'explore' | 'game'
+      tier: 1,                // 1 | 2 | 3
+      score: 0,
+      total: 0,
+      lastProblemIdx: -1,
+      currentProblem: null,
+      solvedCurrent: false,
+      vehicleId: 'car',
+      steps: [{ km: 20, min: 30, op: null, factor: null }]
+    };
+
+    // Vehicle animation state (managed by requestAnimationFrame)
+    const anim = {
+      x: 40,
+      lastTs: 0,
+      boostUntil: 0,
+      wasSolved: false
+    };
+
+    /* =====================================================================
+       MATH & FORMATTING HELPERS
+       ===================================================================== */
+    function fmt(n) {
+      if (!isFinite(n)) return '0';
+      const rounded = Math.round(n * 100) / 100;
+      if (Math.abs(rounded - Math.round(rounded)) < 1e-9) {
+        return String(Math.round(rounded));
+      }
+      return String(parseFloat(rounded.toFixed(2)));
+    }
+
+    function isSixty(m) {
+      return Math.abs(m - 60) < 0.005;
+    }
+
+    // Allows integers & clean terminating decimals up to 2 decimal places (e.g. 2.5, 3.75)
+    function isCleanDecimal(val) {
+      if (!isFinite(val) || val <= 0) return false;
+      return Math.abs(val * 100 - Math.round(val * 100)) < 1e-6;
+    }
+
+    function currentKmh() {
+      const s = state.steps[0];
+      if (!s || s.min <= 0) return 40;
+      return (s.km / s.min) * 60;
+    }
+
+    function shakeEl(el) {
+      if (!el) return;
+      el.classList.remove('shake');
+      void el.offsetWidth;
+      el.classList.add('shake');
+    }
+
+    /* =====================================================================
+       VEHICLE PICKER & SMOOTH ANIMATION LOOP
+       ===================================================================== */
+    function initVehiclePicker() {
+      const picker = document.getElementById('vehicle-picker');
+      picker.innerHTML = VEHICLES.map(v => `
+        <button class="veh-btn ${v.id === state.vehicleId ? 'active' : ''}"
+                id="veh-btn-${v.id}"
+                title="${v.title}"
+                onclick="selectVehicle('${v.id}')">
+          ${v.icon}
+        </button>
+      `).join('');
+      renderVehicleSvg();
+    }
+
+    function selectVehicle(id) {
+      state.vehicleId = id;
+      VEHICLES.forEach(v => {
+        const btn = document.getElementById(`veh-btn-${v.id}`);
+        if (btn) btn.classList.toggle('active', v.id === id);
+      });
+      renderVehicleSvg();
+    }
+
+    function renderVehicleSvg() {
+      const v = VEHICLES.find(item => item.id === state.vehicleId) || VEHICLES[1];
+      document.getElementById('vehicle-svg-wrap').innerHTML = v.trackSvg;
+    }
+
+    function triggerSpeedBoost() {
+      anim.boostUntil = performance.now() + 1500;
+    }
+
+    function startVehicleLoop() {
+      const roadEl = document.getElementById('road-stage');
+      const runnerEl = document.getElementById('vehicle-runner');
+      const linesEl = document.getElementById('speed-lines');
+
+      function tick(ts) {
+        if (!anim.lastTs) anim.lastTs = ts;
+        const dt = Math.min(0.05, (ts - anim.lastTs) / 1000);
+        anim.lastTs = ts;
+
+        const kmh = currentKmh();
+        const isBoosting = ts < anim.boostUntil;
+
+        // Scale pixels/sec smoothly with actual km/h
+        // 10 km/h -> ~68 px/s | 40 km/h -> ~195 px/s | 120 km/h -> ~490 px/s | 250+ -> ~800 px/s
+        let pxPerSec = Math.min(820, Math.max(42, 32 + Math.pow(kmh, 0.88) * 6.4));
+        if (isBoosting) pxPerSec *= 2.15;
+
+        // Update wheel spin speed dynamically
+        const wheelDur = Math.max(0.12, Math.min(1.8, 120 / pxPerSec));
+        runnerEl.style.setProperty('--wheel-dur', `${wheelDur.toFixed(2)}s`);
+        linesEl.classList.toggle('boost', isBoosting);
+
+        const roadW = roadEl.clientWidth || window.innerWidth;
+        const runnerW = runnerEl.offsetWidth || 130;
+
+        anim.x += pxPerSec * dt;
+        if (anim.x > roadW + 30) {
+          anim.x = -runnerW - 20;
+        }
+
+        runnerEl.style.transform = `translate3d(${anim.x.toFixed(1)}px, 0, 0)`;
+        requestAnimationFrame(tick);
+      }
+
+      requestAnimationFrame(tick);
+    }
+
+    /* =====================================================================
+       MODE, DIFFICULTY & GAME FLOW
+       ===================================================================== */
+    function updateScoreDisplay() {
+      document.getElementById('score-val').textContent = `${state.score} / ${state.total}`;
+    }
+
+    function setMode(mode) {
+      if (state.mode === mode) return;
+      state.mode = mode;
+
+      const btnEx = document.getElementById('btn-mode-explore');
+      const btnGm = document.getElementById('btn-mode-game');
+      const gameCtrl = document.getElementById('game-controls');
+      const promptBar = document.getElementById('game-prompt-bar');
+
+      if (mode === 'explore') {
+        btnEx.className = 'mode-btn active';
+        btnGm.className = 'mode-btn';
+        gameCtrl.classList.add('hidden');
+        promptBar.classList.add('hidden');
+        state.solvedCurrent = false;
+        state.currentProblem = null;
+        anim.wasSolved = false;
+        state.steps = [{ km: 20, min: 30, op: null, factor: null }];
+        render();
+      } else {
+        btnEx.className = 'mode-btn';
+        btnGm.className = 'mode-btn active game-on';
+        gameCtrl.classList.remove('hidden');
+        promptBar.classList.remove('hidden');
+        updateScoreDisplay();
+        nextProblem(true);
+      }
+    }
+
+    function setTier(t) {
+      state.tier = t;
+      state.lastProblemIdx = -1;
+      [1, 2, 3].forEach(i => {
+        document.getElementById(`tier-${i}`).classList.toggle('active', i === t);
+      });
+      nextProblem(true);
+    }
+
+    function nextProblem(force = false) {
+      if (!force && !state.solvedCurrent) return;
+      const bank = PROBLEMS[state.tier];
+      let idx = Math.floor(Math.random() * bank.length);
+      if (idx === state.lastProblemIdx && bank.length > 1) {
+        idx = (idx + 1) % bank.length;
+      }
+      state.lastProblemIdx = idx;
+      const prob = bank[idx];
+      state.currentProblem = prob;
+      state.steps = [{ km: prob.km, min: prob.min, op: null, factor: null }];
+      state.solvedCurrent = false;
+      anim.wasSolved = false;
+
+      // Auto-select matching vehicle for the word problem
+      selectVehicle(prob.vehicle);
+
+      // Update word problem prompt & reset answer input UI
+      document.getElementById('problem-text').textContent = prob.text;
+      const ansInput = document.getElementById('answer-input');
+      const ansBox = document.getElementById('answer-box');
+      const checkMark = document.getElementById('answer-check-mark');
+      const btnCheck = document.getElementById('btn-check');
+      const btnNext = document.getElementById('btn-next');
+
+      ansInput.value = '';
+      ansInput.disabled = false;
+      ansBox.className = 'answer-box';
+      checkMark.classList.add('hidden');
+      btnCheck.classList.remove('hidden');
+      btnNext.classList.add('hidden');
+
+      render();
+    }
+
+    function handleAnswerKey(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (state.solvedCurrent) {
+          nextProblem();
+        } else {
+          checkAnswer();
+        }
+      } else {
+        // Clear wrong-state red border as soon as user edits their answer
+        document.getElementById('answer-box').classList.remove('wrong');
+      }
+    }
+
+    function checkAnswer() {
+      if (state.mode !== 'game' || state.solvedCurrent || !state.currentProblem) return;
+
+      const ansInput = document.getElementById('answer-input');
+      const ansBox = document.getElementById('answer-box');
+      const raw = parseFloat(ansInput.value);
+
+      if (isNaN(raw)) {
+        ansBox.classList.add('wrong');
+        shakeEl(ansBox);
+        ansInput.focus();
+        return;
+      }
+
+      const expected = (state.currentProblem.km / state.currentProblem.min) * 60;
+      const isCorrect = Math.abs(raw - expected) < 0.01;
+
+      if (isCorrect) {
+        state.solvedCurrent = true;
+        state.score++;
+        state.total++;
+        updateScoreDisplay();
+
+        ansInput.value = fmt(expected);
+        ansInput.disabled = true;
+        ansInput.blur();
+        ansBox.classList.remove('wrong');
+        ansBox.classList.add('correct');
+        document.getElementById('answer-check-mark').classList.remove('hidden');
+        document.getElementById('btn-check').classList.add('hidden');
+        document.getElementById('btn-next').classList.remove('hidden');
+
+        triggerSpeedBoost();
+      } else {
+        ansBox.classList.add('wrong');
+        shakeEl(ansBox);
+        ansInput.focus();
+        ansInput.select();
+      }
+    }
+
+    /* =====================================================================
+       FRACTION OPERATIONS
+       ===================================================================== */
+    function updateStartValue(field, rawVal) {
+      if (state.mode !== 'explore') return;
+      const val = parseFloat(rawVal);
+      if (isNaN(val) || val <= 0) {
+        render();
+        return;
+      }
+      const base = { ...state.steps[0] };
+      base[field] = Math.round(val * 100) / 100;
+      state.steps = [base];
+      anim.wasSolved = isSixty(base.min);
+      render();
+    }
+
+    function nudgeStart(field, delta) {
+      if (state.mode !== 'explore') return;
+      const base = { ...state.steps[0] };
+      base[field] = Math.max(1, Math.round((base[field] + delta) * 100) / 100);
+      state.steps = [base];
+      anim.wasSolved = isSixty(base.min);
+      render();
+    }
+
+    function applyOp(type, factor, sourceEl) {
+      if (!isFinite(factor) || factor <= 0) {
+        shakeEl(sourceEl);
+        return;
+      }
+
+      // Cap chain at 5 fractions (1 start + 4 steps) for crisp TV readability
+      if (state.steps.length >= 5) {
+        shakeEl(document.getElementById('chain'));
+        return;
+      }
+
+      const cur = state.steps[state.steps.length - 1];
+      const nextKm = type === 'mul' ? cur.km * factor : cur.km / factor;
+      const nextMin = type === 'mul' ? cur.min * factor : cur.min / factor;
+
+      // Division check: reject repeating/ugly decimals (> 2 decimal places) with subtle shake
+      if (type === 'div' && (!isCleanDecimal(nextKm) || !isCleanDecimal(nextMin))) {
+        shakeEl(sourceEl);
+        return;
+      }
+
+      if (nextKm > 999999 || nextMin > 999999 || nextMin < 0.01) {
+        shakeEl(sourceEl);
+        return;
+      }
+
+      state.steps.push({
+        km: Math.round(nextKm * 100) / 100,
+        min: Math.round(nextMin * 100) / 100,
+        op: type,
+        factor
+      });
+
+      const nowSolved = isSixty(nextMin);
+      if (state.mode === 'explore' && nowSolved && !anim.wasSolved) {
+        triggerSpeedBoost();
+      }
+      anim.wasSolved = nowSolved;
+
+      render();
+    }
+
+    function applyCustomOp(type) {
+      const input = document.getElementById(type === 'mul' ? 'custom-mul' : 'custom-div');
+      const wrap = document.getElementById(type === 'mul' ? 'custom-mul-wrap' : 'custom-div-wrap');
+      const val = parseFloat(input.value);
+      if (isNaN(val) || val <= 0) {
+        shakeEl(wrap);
+        return;
+      }
+      input.value = '';
+      input.blur();
+      applyOp(type, val, wrap);
+    }
+
+    function undoStep() {
+      if (state.steps.length <= 1) return;
+      state.steps.pop();
+      const latest = state.steps[state.steps.length - 1];
+      anim.wasSolved = isSixty(latest.min);
+      render();
+    }
+
+    function resetChain() {
+      if (state.steps.length > 1) {
+        state.steps = [state.steps[0]];
+      } else if (state.mode === 'explore') {
+        state.steps = [{ km: 20, min: 30, op: null, factor: null }];
+      }
+      anim.wasSolved = isSixty(state.steps[0].min);
+      render();
+    }
+
+    /* =====================================================================
+       RENDER ENGINE (FRACTION CHAIN + CURVED ARROWS + PROGRESS BAR)
+       ===================================================================== */
+    function render() {
+      const steps = state.steps;
+      const latest = steps[steps.length - 1];
+      const at60 = isSixty(latest.min);
+      const showResultBadge = state.mode === 'explore' && at60;
+
+      // 1. Dynamic chain scale so 1–5 fractions + solved result always fit 100vw cleanly
+      const baseScale = { 1: 1.02, 2: 0.86, 3: 0.67, 4: 0.54, 5: 0.45 }[steps.length] || 0.45;
+      let scale = state.mode === 'game' ? baseScale * 0.84 : baseScale;
+      if (showResultBadge) scale *= 0.92;
+      document.documentElement.style.setProperty('--chain-scale', scale.toFixed(3));
+
+      // 2. Topbar Undo button state
+      document.getElementById('btn-undo').disabled = steps.length <= 1;
+
+      // 3. Build Equivalent Fraction Chain with Curved Top/Bottom Arrows
+      let html = '';
+      steps.forEach((step, i) => {
+        const nodeAt60 = isSixty(step.min);
+
+        if (i > 0) {
+          const sym = step.op === 'mul' ? '×' : '÷';
+          const badge = `${sym}${fmt(step.factor)}`;
+          const strokeColor = step.op === 'mul' ? '#2563eb' : '#059669';
+
+          html += `
+            <div class="connector">
+              <div class="arrow-block">
+                <span class="op-pill ${step.op}">${badge}</span>
+                <svg class="curved-arrow" viewBox="0 0 90 28" fill="none">
+                  <path d="M8 24 Q45 3 80 21" stroke="${strokeColor}" stroke-width="3.2" stroke-linecap="round"/>
+                  <path d="M72 12 L82 22 L69 24" stroke="${strokeColor}" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <span class="eq-sign">=</span>
+              <div class="arrow-block">
+                <svg class="curved-arrow" viewBox="0 0 90 28" fill="none">
+                  <path d="M8 4 Q45 25 80 7" stroke="${strokeColor}" stroke-width="3.2" stroke-linecap="round"/>
+                  <path d="M69 4 L82 6 L72 16" stroke="${strokeColor}" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span class="op-pill ${step.op}">${badge}</span>
+              </div>
+            </div>
+          `;
+        }
+
+        const canEdit = state.mode === 'explore' && i === 0;
+        const kmStr = fmt(step.km);
+        const minStr = fmt(step.min);
+        const kmW = Math.max(2, kmStr.length + 0.45);
+        const minW = Math.max(2, minStr.length + 0.45);
+
+        const topRow = canEdit
+          ? `<div class="editable-wrap">
+               <button class="nudge-btn" onclick="nudgeStart('km', -5)" tabindex="-1">−</button>
+               <input class="val-input" style="width:${kmW}ch" type="number" step="any" min="0.01"
+                 value="${kmStr}"
+                 onchange="updateStartValue('km', this.value)"
+                 onkeydown="if(event.key==='Enter') this.blur()" />
+               <span class="frac-unit">km</span>
+               <button class="nudge-btn" onclick="nudgeStart('km', 5)" tabindex="-1">+</button>
+             </div>`
+          : `<div class="frac-row">
+               <span class="frac-val">${kmStr}</span>
+               <span class="frac-unit">km</span>
+             </div>`;
+
+        const botRow = canEdit
+          ? `<div class="editable-wrap">
+               <button class="nudge-btn" onclick="nudgeStart('min', -5)" tabindex="-1">−</button>
+               <input class="val-input" style="width:${minW}ch" type="number" step="any" min="0.01"
+                 value="${minStr}"
+                 onchange="updateStartValue('min', this.value)"
+                 onkeydown="if(event.key==='Enter') this.blur()" />
+               <span class="frac-unit">min</span>
+               <button class="nudge-btn" onclick="nudgeStart('min', 5)" tabindex="-1">+</button>
+             </div>`
+          : `<div class="frac-row">
+               <span class="frac-val">${minStr}</span>
+               <span class="frac-unit">min</span>
+             </div>`;
+
+        html += `
+          <div class="frac-node ${nodeAt60 ? 'solved' : ''}">
+            ${topRow}
+            <div class="frac-bar"></div>
+            ${botRow}
+          </div>
+        `;
+      });
+
+      // In Explore mode, smoothly reveal "= 40 km/h" once denominator hits 60 min
+      // (In Game mode, the 60 min fraction highlights in emerald so students enter it in the ___ km/h box)
+      if (showResultBadge) {
+        html += `
+          <div class="result-reveal">
+            <span class="eq-sign" style="color: var(--teal)">=</span>
+            <div class="result-badge">
+              <span class="result-val">${fmt(latest.km)}</span>
+              <span class="result-unit">km/h</span>
+            </div>
+          </div>
+        `;
+      }
+
+      document.getElementById('chain').innerHTML = html;
+
+      // 4. Update 60-min Progress Bar
+      renderProgressBar(latest.min, at60);
+    }
+
+    function renderProgressBar(curMin, at60) {
+      const maxScale = Math.max(100, curMin * 1.12);
+      const fillPct = Math.min(100, Math.max(1.5, (curMin / maxScale) * 100));
+      const goalPct = (60 / maxScale) * 100;
+
+      const fillEl = document.getElementById('progress-fill');
+      const goalEl = document.getElementById('goal-line');
+      const tag60 = document.getElementById('tag-60');
+      const tagCur = document.getElementById('tag-cur');
+
+      fillEl.style.width = `${fillPct.toFixed(2)}%`;
+      fillEl.classList.toggle('solved', at60);
+
+      goalEl.style.left = `${goalPct.toFixed(2)}%`;
+      tag60.style.left = `${goalPct.toFixed(2)}%`;
+
+      const overlaps = Math.abs(fillPct - goalPct) < 7;
+      tagCur.textContent = `${fmt(curMin)} min`;
+      tagCur.style.left = `${Math.min(96, Math.max(4, fillPct)).toFixed(2)}%`;
+      tagCur.style.opacity = overlaps ? '0' : '1';
+    }
+
+    /* =====================================================================
+       KEYBOARD SHORTCUTS (Backspace = Undo, R = Reset, Space/Enter = Next)
+       ===================================================================== */
+    document.addEventListener('keydown', (e) => {
+      const tag = document.activeElement ? document.activeElement.tagName : '';
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      if (e.key === 'Backspace') {
+        e.preventDefault();
+        undoStep();
+      } else if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault();
+        resetChain();
+      } else if ((e.key === ' ' || e.key === 'Enter') && state.mode === 'game' && state.solvedCurrent) {
+        e.preventDefault();
+        nextProblem();
+      }
+    });
+
+    // Boot
+    initVehiclePicker();
+    render();
+    startVehicleLoop();
+  </script>
+</body>
+</html>
